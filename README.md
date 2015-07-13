@@ -47,9 +47,10 @@ hashids is a kind of encoding strategy for BigInt data. So the unqiue counter nu
 ms.module.json.alias.mode = "local"
 ```
 
-# Future
-- Embedded JSON structure encoding, for example:
-  
+# Features
+- support local(in memory) mode.(external storage system will come soon)
+- support embedded JsObject or JsArray encoding/decoding.
+- unified counter service. (for unified [Hashids](http://hashids.org/))
 
 # Author
 truman@misfit.com
