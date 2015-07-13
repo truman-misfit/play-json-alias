@@ -9,7 +9,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import com.google.inject.AbstractModule
 
-import play.api._
+import play.api.Play
 import play.api.libs.json._
 import play.api.inject.ApplicationLifecycle
 
@@ -103,15 +103,24 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
         jsValue.validate[JsObject] match {
           case s: JsSuccess[JsObject] => {
             val validatedJsObject = s.get
-            val encodedJsObjectWithInJsArray = Await.
+            val encodedJsObjectWithinJsArray = Await.
                   result(encode(validatedJsObject), 10.millis)
-            encodedJsArray = encodedJsArray :+ encodedJsObjectWithInJsArray
+            encodedJsArray = encodedJsArray :+ encodedJsObjectWithinJsArray
           }
           case e: JsError => {
             // literally we should handle someother type,
             // for example: JsArray
-            // But right now we just cope with JsObject
-            throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
+            jsValue.validate[JsArray] match {
+              case s: JsSuccess[JsArray] => {
+                val validatedJsArray = s.get
+                val encodedJsArrayWithinJsArray = Await.
+                      result(encode(validatedJsArray), 10.millis)
+                encodedJsArray = encodedJsArray :+ encodedJsArrayWithinJsArray
+              }
+              case e: JsError => {
+                // do nothing
+              }
+            }
           }
         }
       }
@@ -180,15 +189,22 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
         jsValue.validate[JsObject] match {
           case s: JsSuccess[JsObject] => {
             val validatedJsObject = s.get
-            val decodedJsObjectWithInJsArray = Await.
+            val decodedJsObjectWithinJsArray = Await.
                   result(decode(validatedJsObject), 10.millis)
-            decodedJsArray = decodedJsArray :+ decodedJsObjectWithInJsArray
+            decodedJsArray = decodedJsArray :+ decodedJsObjectWithinJsArray
           }
           case e: JsError => {
-            // literally we should handle someother type,
-            // for example: JsArray
-            // But right now we just cope with JsObject
-            throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
+            jsValue.validate[JsArray] match {
+              case s: JsSuccess[JsArray] => {
+                val validatedJsObject = s.get
+                val decodedJsArrayWithinJsArray = Await.
+                      result(decode(validatedJsObject), 10.millis)
+                decodedJsArray = decodedJsArray :+ decodedJsArrayWithinJsArray
+              }
+              case e: JsError => {
+                // do nothing
+              }
+            }
           }
         }
       }

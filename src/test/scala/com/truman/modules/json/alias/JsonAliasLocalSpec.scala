@@ -46,6 +46,7 @@ class JsonAliasSpec extends PlaySpecification {
   )
   // cover embedded JSON structure of JsArray test case
   val embedMockSeq: Seq[MockEmbedObject] = Seq(embedMockObject)
+  val complexMockSeq: Seq[Seq[MockEmbedObject]] = Seq(embedMockSeq)
 
   val oneMockJsObject = Json.toJson(oneMockObject)
                             .as[JsObject]
@@ -57,15 +58,21 @@ class JsonAliasSpec extends PlaySpecification {
                               .as[JsObject]
   val embedMockJsArray = Json.toJson(embedMockSeq)
                             .as[JsArray]
+  val complexMockJsArray = Json.toJson(complexMockSeq)
+                              .as[JsArray]
 
   "A JSON Alias specification" should {
     "JsObject encode and decode" in new WithApplication {
       val jalias = app.injector.instanceOf[JsonAlias]
 
       val resultEncodedJSON = Await.result(jalias.encode(oneMockJsObject), 10.millis)
-      Logger.info("The encoded JsObject: " + resultEncodedJSON)
       val resultDecodedJSON = Await.result(jalias.decode(resultEncodedJSON), 10.millis)
-      Logger.info("The decoded JsObject: " + resultDecodedJSON)
+      Logger.info("The simple JsObject alias decode/encode: ")
+      Logger.info("------ JSON ------")
+      Logger.info(Json.prettyPrint(resultEncodedJSON))
+      Logger.info("------ Alias ------")
+      Logger.info(Json.prettyPrint(resultDecodedJSON))
+      Logger.info("-------------------")
 
       // parse to scala Object
       resultDecodedJSON.validate[MockObject] match {
@@ -82,9 +89,13 @@ class JsonAliasSpec extends PlaySpecification {
       val jalias = app.injector.instanceOf[JsonAlias]
 
       val resultEncodedJSON = Await.result(jalias.encode(mockJsArray), 10.millis)
-      Logger.info("The encoded JsArray: " + Json.prettyPrint(resultEncodedJSON))
       val resultDecodedJSON = Await.result(jalias.decode(resultEncodedJSON), 10.millis)
-      Logger.info("The decoded JsArray: " + Json.prettyPrint(resultDecodedJSON))
+      Logger.info("The simple JsArray alias decode/encode: ")
+      Logger.info("------ JSON ------")
+      Logger.info(Json.prettyPrint(resultEncodedJSON))
+      Logger.info("------ Alias ------")
+      Logger.info(Json.prettyPrint(resultDecodedJSON))
+      Logger.info("-------------------")
 
       // parse to scala Object
       resultDecodedJSON.validate[Seq[MockObject]] match {
@@ -99,15 +110,19 @@ class JsonAliasSpec extends PlaySpecification {
       }
     }
 
-    "JsObject embedded JSON structure encode and decode" in new WithApplication {
+    "JsObject embedded another JsObject" in new WithApplication {
       val jalias = app.injector.instanceOf[JsonAlias]
 
       val resultEncodedJSON = Await.result(
             jalias.encode(embedMockJsObject), 10.millis)
-      Logger.info("The encoded embedded JsObject: " + Json.prettyPrint(resultEncodedJSON))
       val resultDecodedJSON = Await.result(
             jalias.decode(resultEncodedJSON), 10.millis)
-      Logger.info("The decoded embedded JsObject: " + Json.prettyPrint(resultDecodedJSON))
+      Logger.info("The embedded JsObject alias decode/encode: ")
+      Logger.info("------ JSON ------")
+      Logger.info(Json.prettyPrint(resultEncodedJSON))
+      Logger.info("------ Alias ------")
+      Logger.info(Json.prettyPrint(resultDecodedJSON))
+      Logger.info("-------------------")
 
       resultDecodedJSON.validate[MockEmbedObject] match {
         case s: JsSuccess[MockEmbedObject] => {
@@ -121,20 +136,49 @@ class JsonAliasSpec extends PlaySpecification {
       }
     }
 
-    "JsArray embedded JSON structure encode and decode" in new WithApplication {
+    "JsArray embed another JsObject" in new WithApplication {
       val jalias = app.injector.instanceOf[JsonAlias]
 
       val resultEncodedJSON = Await.result(
             jalias.encode(embedMockJsArray), 10.millis)
-      Logger.info("The encoded embedded JsArray: " + Json.prettyPrint(resultEncodedJSON))
       val resultDecodedJSON = Await.result(
             jalias.decode(resultEncodedJSON), 10.millis)
-      Logger.info("The encoded embedded JsArray: " + Json.prettyPrint(resultDecodedJSON))
+      Logger.info("JsArray contains JsObject alias decode/encode: ")
+      Logger.info("------ JSON ------")
+      Logger.info(Json.prettyPrint(resultEncodedJSON))
+      Logger.info("------ Alias ------")
+      Logger.info(Json.prettyPrint(resultDecodedJSON))
+      Logger.info("-------------------")
 
       resultDecodedJSON.validate[Seq[MockEmbedObject]] match {
         case s: JsSuccess[Seq[MockEmbedObject]] => {
           val headMockEmbedObjectInSeq = s.get.head
           headMockEmbedObjectInSeq.oneObject must_== oneMockObject
+        }
+        case e: JsError => {
+          throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
+        }
+      }
+    }
+
+    "JsArray embed another JsArray" in new WithApplication {
+      val jalias = app.injector.instanceOf[JsonAlias]
+
+      val resultEncodedJSON = Await.result(
+            jalias.encode(complexMockJsArray), 10.millis)
+      val resultDecodedJSON = Await.result(
+            jalias.decode(resultEncodedJSON), 10.millis)
+      Logger.info("JsArray contains another JsArray alias decode/encode: ")
+      Logger.info("------ JSON ------")
+      Logger.info(Json.prettyPrint(resultEncodedJSON))
+      Logger.info("------ Alias ------")
+      Logger.info(Json.prettyPrint(resultDecodedJSON))
+      Logger.info("-------------------")
+
+      resultDecodedJSON.validate[Seq[Seq[MockEmbedObject]]] match {
+        case s: JsSuccess[Seq[Seq[MockEmbedObject]]] => {
+          val headOfHeadOfEmbedSeq = s.get.head.head
+          headOfHeadOfEmbedSeq.oneObject must_== oneMockObject
         }
         case e: JsError => {
           throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
