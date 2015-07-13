@@ -3,12 +3,13 @@ package com.truman.modules.json.alias
 import javax.inject.{Inject, Singleton}
 
 import scala.util.Try
+import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import com.google.inject.AbstractModule
 
-import play.api.Play
+import play.api._
 import play.api.libs.json._
 import play.api.inject.ApplicationLifecycle
 
@@ -28,7 +29,7 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
 
   private def validate(raw: JsValue): Boolean = {
     Try(Some(raw)).map { raw =>
-      1 == 1 // alway valid
+      true // alway valid
     }.getOrElse(false)
   }
 
@@ -45,10 +46,32 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
         foreach { pair =>
           val jsonAttribute = pair._1
           val jsonValue = pair._2
+          var recurEncodedJsonValue = jsonValue
+          // recursive encoding for jsonValue
+          jsonValue.validate[JsObject] match {
+            case s: JsSuccess[JsObject] => {
+              recurEncodedJsonValue = Await.
+                result(encode(s.get), 10.millis)
+            }
+            case e: JsError => {
+              jsonValue.validate[JsArray] match {
+                case s: JsSuccess[JsArray] => {
+                  recurEncodedJsonValue = Await.
+                    result(encode(s.get), 10.millis)
+                }
+                case e: JsError => {
+                  // do nothing
+                }
+              }
+            }
+          }
+
+          // encode current JSON key
           if (src2alias.contains(jsonAttribute)) {
             // attribute has been cached
             val shortAttribute = src2alias.get(jsonAttribute).get
-            encodedJsObject = encodedJsObject + (shortAttribute, jsonValue)
+            encodedJsObject = encodedJsObject + (
+              shortAttribute, recurEncodedJsonValue)
           } else {
             // allocate a new short attribute for the new one
             // get a new counter for the new attribute
@@ -58,7 +81,8 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
               val shortAttribute = Base62Encoder.encode(BigInt(counter))
               src2alias += ((jsonAttribute, shortAttribute))
               alias2src += ((shortAttribute, jsonAttribute))
-              encodedJsObject = encodedJsObject + (shortAttribute, jsonValue)
+              encodedJsObject = encodedJsObject + (
+                shortAttribute, recurEncodedJsonValue)
             }
           }
         }
@@ -108,10 +132,32 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
         foreach { pair =>
           val jsonAttribute = pair._1
           val jsonValue = pair._2
+          // recursively parse the json value
+          var recurDecodedJsonValue = jsonValue
+          // recursive encoding for jsonValue
+          jsonValue.validate[JsObject] match {
+            case s: JsSuccess[JsObject] => {
+              recurDecodedJsonValue = Await.
+                result(decode(s.get), 10.millis)
+            }
+            case e: JsError => {
+              jsonValue.validate[JsArray] match {
+                case s: JsSuccess[JsArray] => {
+                  recurDecodedJsonValue = Await.
+                    result(decode(s.get), 10.millis)
+                }
+                case e: JsError => {
+                  // do nothing
+                }
+              }
+            }
+          }
+
+          // decode the alias to original attribute key
           if (alias2src.contains(jsonAttribute)) {
             // attribute has been cached
             val decodedAttribute = alias2src.get(jsonAttribute).get
-            decodedJsObject = decodedJsObject + (decodedAttribute, jsonValue)
+            decodedJsObject = decodedJsObject + (decodedAttribute, recurDecodedJsonValue)
           } else {
             // literally an Exception should be throw out
             Future.failed(new IllegalArgumentException(
