@@ -12,37 +12,68 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class JsonAliasSpec extends PlaySpecification {
 
-  "A JSON Alias specification" should {
-    "Normal encode and decode" in new WithApplication {
+  case class MockObject(
+    oneLongAttribute: String,
+    anotherLongAttribute: String,
+    oneAnotherLongAttribute: String
+  )
+  implicit val MockObjectFormat = Json.format[MockObject]
 
+  val oneMockObject = MockObject(
+    "attribute", "another attribute",
+    "another once again attribute"
+  )
+
+  val anotherMockObject = MockObject(
+    "long attribute", "long long attribute",
+    "another long long attribute"
+  )
+  val mockObjectSeq = Seq(oneMockObject, anotherMockObject)
+
+  val oneMockJsObject = Json.toJson(oneMockObject)
+                            .as[JsObject]
+  val anotherMockJsObject = Json.toJson(anotherMockObject)
+                                .as[JsObject]
+  val mockJsArray = Json.toJson(mockObjectSeq)
+                        .as[JsArray]
+
+  "A JSON Alias specification" should {
+    "JsObject encode and decode" in new WithApplication {
       val jalias = app.injector.instanceOf[JsonAlias]
 
-      case class DemoJSON(
-        oneLongAttribute: String,
-        anotherLongAttribute: String,
-        oneAnotherLongAttribute: String
-      )
-      implicit val DemoJSONFormat = Json.format[DemoJSON]
-
-      val demoJSONObject = DemoJSON(
-        "attribute", "another attribute",
-        "another once again attribute"
-      )
-      val jsonOfDemoObject = Json.toJson(demoJSONObject)
-                                .as[JsObject]
-
-      val resultEncodedJSON = Await.result(jalias.encode(jsonOfDemoObject), 10.millis)
-      Logger.info("The encoded JSON: " + resultEncodedJSON)
+      val resultEncodedJSON = Await.result(jalias.encode(oneMockJsObject), 10.millis)
+      Logger.info("The encoded JsObject: " + resultEncodedJSON)
       val resultDecodedJSON = Await.result(jalias.decode(resultEncodedJSON), 10.millis)
-      Logger.info("The decoded JSON: " + resultDecodedJSON)
+      Logger.info("The decoded JsObject: " + resultDecodedJSON)
 
       // parse to scala Object
-      resultDecodedJSON.validate[DemoJSON] match {
-        case s: JsSuccess[DemoJSON] => {
-          s.get must_== demoJSONObject
+      resultDecodedJSON.validate[MockObject] match {
+        case s: JsSuccess[MockObject] => {
+          s.get must_== oneMockObject
         }
         case e: JsError => {
-          throw new Exception("Errors: " + JsError.toFlatJson(e).toString())
+          throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
+        }
+      }
+    }
+
+    "JsArray encode and decode" in new WithApplication {
+      val jalias = app.injector.instanceOf[JsonAlias]
+
+      val resultEncodedJSON = Await.result(jalias.encode(mockJsArray), 10.millis)
+      Logger.info("The encoded JsArray: " + Json.prettyPrint(resultEncodedJSON))
+      val resultDecodedJSON = Await.result(jalias.decode(resultEncodedJSON), 10.millis)
+      Logger.info("The decoded JsArray: " + Json.prettyPrint(resultDecodedJSON))
+
+      // parse to scala Object
+      resultDecodedJSON.validate[Seq[MockObject]] match {
+        case s: JsSuccess[Seq[MockObject]] => {
+          val decodedMockObjectSeq = s.get
+          decodedMockObjectSeq.size must_== mockObjectSeq.size
+          decodedMockObjectSeq must_== mockObjectSeq
+        }
+        case e: JsError => {
+          throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
         }
       }
     }

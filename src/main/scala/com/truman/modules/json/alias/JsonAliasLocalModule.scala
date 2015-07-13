@@ -4,6 +4,8 @@ import javax.inject.{Inject, Singleton}
 
 import scala.util.Try
 import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration._
 import com.google.inject.AbstractModule
 
 import play.api.Play
@@ -71,7 +73,26 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
     } else {
       // alias start
       // iterate all attributes of the JSON
-      Future.successful(jsArray)
+      var encodedJsArray = JsArray(Seq())
+
+      jsArray.value.foreach { jsValue =>
+        jsValue.validate[JsObject] match {
+          case s: JsSuccess[JsObject] => {
+            val validatedJsObject = s.get
+            val encodedJsObjectWithInJsArray = Await.
+                  result(encode(validatedJsObject), 10.millis)
+            encodedJsArray = encodedJsArray :+ encodedJsObjectWithInJsArray
+          }
+          case e: JsError => {
+            // literally we should handle someother type,
+            // for example: JsArray
+            // But right now we just cope with JsObject
+            throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
+          }
+        }
+      }
+
+      Future.successful(encodedJsArray)
     }
   }
 
@@ -80,8 +101,6 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
       Future.failed(new IllegalArgumentException("Raw JSON is invalid."))
     } else {
       // alias start
-      // iterate all JsObject within JsArray
-
       var decodedJsObject = JsObject(Seq())
 
       // iterate all attributes of the JSON
@@ -109,8 +128,26 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
       Future.failed(new IllegalArgumentException("Raw JSON is invalid."))
     } else {
       // alias start
+      var decodedJsArray = JsArray(Seq())
       // iterate all JsObject within JsArray
-      Future.successful(aliasArray)
+      aliasArray.value.foreach { jsValue =>
+        jsValue.validate[JsObject] match {
+          case s: JsSuccess[JsObject] => {
+            val validatedJsObject = s.get
+            val decodedJsObjectWithInJsArray = Await.
+                  result(decode(validatedJsObject), 10.millis)
+            decodedJsArray = decodedJsArray :+ decodedJsObjectWithInJsArray
+          }
+          case e: JsError => {
+            // literally we should handle someother type,
+            // for example: JsArray
+            // But right now we just cope with JsObject
+            throw new Exception("Errors: " + JsError.toFlatJson(e).toString)
+          }
+        }
+      }
+
+      Future.successful(decodedJsArray)
     }
   }
 
