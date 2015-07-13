@@ -1,6 +1,25 @@
 # play-json-alias
 A JSON attributes renaming module for Play! Framework.
 
+# Preview
+The original JSON Object
+```json
+{
+  "oneLongAttribute" : "attribute",
+  "anotherLongAttribute" : "another attribute",
+  "oneAnotherLongAttribute" : "another once again attribute"
+}
+```
+
+The encoded JSON Object
+```json
+{
+  "g9" : "attribute",
+  "ga" : "another attribute",
+  "gb" : "another once again attribute"
+}
+```
+
 # Introduction
 This module provide two methods and 4 types of alias storage strategy:
  * Local in memory (A singleton counter service and two alias mapping objects)
@@ -8,7 +27,7 @@ This module provide two methods and 4 types of alias storage strategy:
  * Redis (Powered by Redis/ElastiCache).
  * DynamoDB (Powered by DynamoDB).
 
-
+# Steps
 #### Step 1. Generate unique ID for attribute
 Each time the encoder find a new JSON attribute, a unified Counter Service will generate a
 new count as a global unique BigInt type id for its attribute.
@@ -27,6 +46,11 @@ hashids is a kind of encoding strategy for BigInt data. So the unqiue counter nu
 # - dynamo (coming soon)
 ms.module.json.alias.mode = "local"
 ```
+
+# Features
+- support local(in memory) mode.(external storage system will come soon)
+- support embedded JsObject or JsArray encoding/decoding.
+- unified counter service. (for unified [Hashids](http://hashids.org/))
 
 # Author
 truman@misfit.com
