@@ -25,7 +25,7 @@ class LocalCounterModule @Inject()(lifecycle: ApplicationLifecycle) extends Coun
     nextInternal(System.currentTimeMillis)
   }
 
-  def nextInternal(now: Long) = {
+  private def nextInternal(now: Long) = {
     val nowInSeconds = now / 1000L
     val nextRollingValue = this.synchronized[Long] {
       roller = (roller + 1) % 1024
