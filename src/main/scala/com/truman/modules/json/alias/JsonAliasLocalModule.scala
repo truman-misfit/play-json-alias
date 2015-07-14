@@ -81,7 +81,6 @@ class JsonAliasLocal @Inject()(
               // get new counter number
               val currentCounter = Await.result(counter.next, 10.millis)
               val shortAttribute = Base62Encoder.encode(currentCounter)
-              println("...." + currentCounter + " short attr " + shortAttribute)
               src2alias += ((jsonAttribute, shortAttribute))
               alias2src += ((shortAttribute, jsonAttribute))
               encodedJsObject = encodedJsObject + (
