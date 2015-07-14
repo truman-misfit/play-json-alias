@@ -22,19 +22,21 @@ class LocalCounterModule @Inject()(lifecycle: ApplicationLifecycle) extends Coun
   private var roller = -1
 
   override def next: Future[BigInt] = {
-    nextInternal(System.currentTimeMillis)
+    nextInternal
   }
 
-  private def nextInternal(now: Long) = {
-    val nowInSeconds = now / 1000L
+  private def nextInternal: Future[BigInt] = {
     val nextRollingValue = this.synchronized[Long] {
-      roller = (roller + 1) % 1024
-      roller
+      roller = roller + 1
+      if (roller > 256) {
+        throw new Exception("Out Of Counter Boundary.")
+      } else {
+        roller
+      }
     }
     Future.successful(
       BigInt(
         nextRollingValue +
-        (1024 * token) +
-        (65536 * nowInSeconds)))
+        (256 * token)))
   }
 }

@@ -122,6 +122,7 @@ class JsonAliasLocal @Inject()(
               }
               case e: JsError => {
                 // do nothing
+                encodedJsArray = encodedJsArray :+ jsValue
               }
             }
           }

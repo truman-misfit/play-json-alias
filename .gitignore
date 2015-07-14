@@ -16,4 +16,6 @@ project/plugins/project/
 .scala_dependencies
 .worksheet
 
-JsonAliasDCSpec.scala
+# ignore the test cases
+JsonAliasSourceSpec.scala
+JsonAliasStreamSpec.scala
