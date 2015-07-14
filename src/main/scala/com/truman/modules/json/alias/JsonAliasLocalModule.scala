@@ -3,6 +3,7 @@ package com.truman.modules.json.alias
 import javax.inject.{Inject, Singleton}
 
 import scala.util.Try
+import scala.util.{Success, Failure}
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.concurrent.Await
@@ -14,16 +15,18 @@ import play.api.libs.json._
 import play.api.inject.ApplicationLifecycle
 
 import com.truman.utils.Base62Encoder
+import com.truman.modules.counter.Counter
+import scala.concurrent.ExecutionContext.Implicits.global
 
 @Singleton
-class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlias {
+class JsonAliasLocal @Inject()(
+  lifecycle: ApplicationLifecycle, counter: Counter) extends JsonAlias {
   // release storage manager for alias store
   lifecycle.addStopHook { () =>
     Future.successful(Unit)
   }
 
   private val aliasMutex = new Object
-  private var counter = 1000
   private lazy val src2alias = scala.collection.mutable.Map[String, String]()
   private lazy val alias2src = scala.collection.mutable.Map[String, String]()
 
@@ -74,11 +77,10 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
               shortAttribute, recurEncodedJsonValue)
           } else {
             // allocate a new short attribute for the new one
-            // get a new counter for the new attribute
             aliasMutex.synchronized {
               // get new counter number
-              counter = counter + 1
-              val shortAttribute = Base62Encoder.encode(BigInt(counter))
+              val currentCounter = Await.result(counter.next, 10.millis)
+              val shortAttribute = Base62Encoder.encode(currentCounter)
               src2alias += ((jsonAttribute, shortAttribute))
               alias2src += ((shortAttribute, jsonAttribute))
               encodedJsObject = encodedJsObject + (
@@ -119,6 +121,7 @@ class JsonAliasLocal @Inject()(lifecycle: ApplicationLifecycle) extends JsonAlia
               }
               case e: JsError => {
                 // do nothing
+                encodedJsArray = encodedJsArray :+ jsValue
               }
             }
           }
